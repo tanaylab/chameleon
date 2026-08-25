@@ -1,0 +1,74 @@
+# The recipe pins a CRAN release (version + sha256 move together), so there is
+# no version input here: to publish a new chameleon, bump conda-recipe/meta.yaml
+# and run this workflow.
+name: Build and publish conda package
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "conda-recipe/**"
+      - ".github/workflows/conda-publish.yml"
+    branches:
+      - master
+
+jobs:
+  build_conda:
+    name: conda (ubuntu-latest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          channels: conda-forge
+          channel-priority: strict
+          activate-environment: base
+          auto-activate: true
+
+      - name: Install conda-build and anaconda-client
+        run: |
+          conda install -n base -y conda-build anaconda-client
+
+      - name: Build conda package
+        run: |
+          conda build conda-recipe/ \
+            --no-anaconda-upload \
+            --output-folder conda-output/ \
+            --keep-going \
+            -c conda-forge
+
+      - name: Upload to anaconda.org
+        if: always()
+        env:
+          ANACONDA_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
+        run: |
+          shopt -s nullglob
+          PACKAGES=( conda-output/**/*.tar.bz2 conda-output/**/*.conda )
+
+          if [ ${#PACKAGES[@]} -eq 0 ]; then
+            echo "WARNING: No conda packages found in conda-output/"
+            find conda-output/ -type f
+            exit 0
+          fi
+
+          echo "Uploading ${#PACKAGES[@]} package(s):"
+          printf '  %s\n' "${PACKAGES[@]}"
+
+          anaconda -t "$ANACONDA_TOKEN" upload \
+            --user aviezerl \
+            --label main \
+            --force \
+            "${PACKAGES[@]}"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: conda-pkg-ubuntu-latest
+          path: |
+            conda-output/**/*.tar.bz2
+            conda-output/**/*.conda

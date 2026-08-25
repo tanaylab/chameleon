@@ -1,0 +1,51 @@
+{% set version = "0.2-3" %}
+
+package:
+  name: r-chameleon
+  # conda versions cannot contain '-'
+  version: {{ version|replace("-", "_") }}
+
+# Sourced from CRAN rather than from this checkout on purpose: CRAN carries
+# 0.2-3 while master is still at 0.2-1, and publishing 0.2-1 would be a
+# downgrade against the r-chameleon already on anaconda.org.
+source:
+  url: https://cran.r-project.org/src/contrib/chameleon_{{ version }}.tar.gz
+  sha256: 11fd966ca62812ad807a653de4ec5562bd3de48424dd0b3ac6772af5c1fd6a28
+
+build:
+  number: 0
+  skip: true  # [win]
+  rpaths:
+    - lib/R/lib/
+    - lib/
+
+requirements:
+  host:
+    - r-base {{ r_base }}.*
+    - r-clue
+    - r-ggplot2
+    - r-umap
+  run:
+    - r-base {{ r_base }}.*
+    - r-clue
+    - r-ggplot2
+    - r-umap
+
+test:
+  commands:
+    - $R -e "library('chameleon')"
+
+about:
+  home: https://github.com/tanaylab/chameleon
+  license: MIT
+  license_family: MIT
+  license_file: LICENSE
+  summary: Automatic Colors for Multi-Dimensional Data
+  description: |
+    Assign distinct colors to arbitrary multi-dimensional data, considering
+    its structure.
+  dev_url: https://github.com/tanaylab/chameleon
+
+extra:
+  recipe-maintainers:
+    - aviezerl
